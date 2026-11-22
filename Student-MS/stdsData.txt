@@ -1,0 +1,16 @@
+-----------------------
+STUDENTS INFO SAVED
+-----------------------
+Name: mandip chhetri
+Age: 17
+Major: science
+Percentage: 90.00%
+Attendance: 29/30
+-----------------------
+-----------------------
+Name: mannd
+Age: 74
+Major: jd
+Percentage: 0.00%
+Attendance: 0/30
+-----------------------
