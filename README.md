@@ -4,7 +4,7 @@ Consolidated C projects. Each original repository is retained as a top-level fol
 
 ## Public C project catalog
 
-The searchable C ecosystem is maintained in [`catalog/`](catalog/). GitHub's repository search API is limited to 1,000 results per query, so this catalog uses the 1,000 most-starred public C repositories and refreshes daily. It is an index and discovery map, not a collection of forked copies.
+The searchable C ecosystem is maintained in [`catalog/`](catalog/). GitHub's repository search API is limited to 1,000 results per query, so this catalog uses star-range partitions to cover public, active, non-fork C repositories with at least one star and refreshes weekly. It is an index and discovery map, not a collection of forked copies.
 
 - [`catalog/README.md`](catalog/README.md) - categorized repository directory
 - [`catalog/repositories.json`](catalog/repositories.json) - machine-readable catalog

@@ -8,7 +8,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "catalog"
-LIMIT = 1000
+LIMIT_PER_RANGE = 1000
+STAR_RANGES = [
+    "stars:>=1000",
+    "stars:500..999",
+    "stars:100..499",
+    "stars:50..99",
+    "stars:20..49",
+    "stars:10..19",
+    "stars:5..9",
+    "stars:1..4",
+]
 
 RULES = [
     ("Operating Systems and Kernels", ("kernel", "operating-system", "os", "unix", "linux", "bsd", "bootloader", "firmware")),
@@ -32,34 +42,39 @@ def search_repositories():
     repositories = []
     seen = set()
     per_page = 100
-    for page in range(1, (LIMIT // per_page) + 1):
-        result = subprocess.run(
-            [
-                "gh", "api",
-                "-H", "Accept: application/vnd.github+json",
-                f"/search/repositories?q=language:C+is:public&sort=stars&order=desc&per_page={per_page}&page={page}",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        payload = json.loads(result.stdout)
-        for repo in payload.get("items", []):
-            full_name = repo["full_name"]
-            if full_name in seen:
-                continue
-            seen.add(full_name)
-            repositories.append({
-                "full_name": full_name,
-                "name": repo["name"],
-                "description": repo.get("description") or "",
-                "url": repo["html_url"],
-                "stars": repo["stargazers_count"],
-                "topics": repo.get("topics", []),
-                "license": (repo.get("license") or {}).get("spdx_id"),
-                "updated_at": repo["updated_at"],
-                "archived": repo["archived"],
-            })
+    for star_range in STAR_RANGES:
+        for page in range(1, (LIMIT_PER_RANGE // per_page) + 1):
+            query = f"language:C+is:public+archived:false+fork:false+{star_range}"
+            result = subprocess.run(
+                [
+                    "gh", "api",
+                    "-H", "Accept: application/vnd.github+json",
+                    f"/search/repositories?q={query}&sort=stars&order=desc&per_page={per_page}&page={page}",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            payload = json.loads(result.stdout)
+            items = payload.get("items", [])
+            if not items:
+                break
+            for repo in items:
+                full_name = repo["full_name"]
+                if full_name in seen:
+                    continue
+                seen.add(full_name)
+                repositories.append({
+                    "full_name": full_name,
+                    "name": repo["name"],
+                    "description": repo.get("description") or "",
+                    "url": repo["html_url"],
+                    "stars": repo["stargazers_count"],
+                    "topics": repo.get("topics", []),
+                    "license": (repo.get("license") or {}).get("spdx_id"),
+                    "updated_at": repo["updated_at"],
+                    "archived": repo["archived"],
+                })
     return repositories
 
 
@@ -107,10 +122,11 @@ def main():
     with (CATALOG / "repositories.json").open("w", encoding="utf-8") as handle:
         json.dump({
             "source": "GitHub repository search",
-            "query": "language:C is:public",
+            "query": "language:C is:public archived:false fork:false",
             "sort": "stars",
             "order": "desc",
-            "limit": LIMIT,
+            "limit_per_star_range": LIMIT_PER_RANGE,
+            "star_ranges": STAR_RANGES,
             "count": len(repositories),
             "repositories": repositories,
         }, handle, indent=2)
@@ -118,8 +134,8 @@ def main():
     lines = [
         "# C Project Catalog",
         "",
-        f"This catalog contains {len(repositories)} of the most-starred public GitHub repositories primarily indexed with C.",
-        "GitHub's repository search API exposes at most 1,000 results per query, so this is a scalable discovery index rather than a complete fork of every C repository.",
+        f"This catalog contains {len(repositories)} public C repositories that have at least one star, excluding archived repositories and forks.",
+        "GitHub's search API exposes at most 1,000 results per query, so this edition uses star-range partitions to continue beyond the original 1,000-result ceiling.",
         "",
     ]
     category_names = [name for name, _ in RULES] + ["Libraries and Frameworks"]
